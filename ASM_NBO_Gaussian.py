@@ -264,6 +264,7 @@ def print_NBO_charges_to_file(charges_list, out_file, measures, job_ids, energie
             line += '\n'
             output_file.write(line)
 
+
 def number_of_atoms(input_file):
     """Extract natoms from file."""
     file = ccread(input_file)
