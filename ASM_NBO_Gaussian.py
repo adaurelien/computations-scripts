@@ -88,6 +88,7 @@ def main():
     # NBO_values is a list of list of charges
     NBO_values = [job.extract_NBO_charges() for job in gaussian_jobs]
     job_ids = [job.job_id for job in gaussian_jobs]
+    energy_values = [job.get_energy() for job in gaussian_jobs]
 
     # Compute distances, angles and dihedrals when necessary
     measured_data = []
@@ -99,7 +100,8 @@ def main():
     print_NBO_charges_to_file(charges_list=NBO_values,
                               out_file=output_file,
                               measures=measured_data,
-                              job_ids=job_ids)
+                              job_ids=job_ids,
+                              energies_list=energy_values)
 
 
 def compute_measurements(coordinates, required_data):
@@ -229,7 +231,7 @@ def prepare_NBO_computation(basedir, name, geometry, job_id, header, footer, nat
     return Gaussian_Job(basedir, name, input_file, job_id, natoms)
 
 
-def print_NBO_charges_to_file(charges_list, out_file, measures, job_ids):
+def print_NBO_charges_to_file(charges_list, out_file, measures, job_ids, energies_list):
     """Export NBO charges to a file that one can import in a spreadsheet or gnuplot."""
     logger = logging.getLogger()
     with open(out_file, mode='w+') as output_file:
@@ -240,6 +242,7 @@ def print_NBO_charges_to_file(charges_list, out_file, measures, job_ids):
             logger.debug("Type: %s", type(measures[i][0]))
             logger.debug("Charges: %s", charges_list[i])
             logger.debug("Type: %s", type(charges_list[i][0]))
+            logger.debug("Energy: %s", energies_list[i])
 
             line = str(job_id).ljust(5)
             # Separate job_id and measures
@@ -254,10 +257,12 @@ def print_NBO_charges_to_file(charges_list, out_file, measures, job_ids):
             # It is the same length as measures.
             line += ' '.join(["{0:.3f}".format(float(charges)).rjust(8)
                               for charges in charges_list[i]])
+            # Separate charges and energies
+            line += ' '
+            line += "{0:.9f}".format(float(energies_list[i])).rjust(18)
             # End of line
             line += '\n'
             output_file.write(line)
-
 
 def number_of_atoms(input_file):
     """Extract natoms from file."""
@@ -525,6 +530,21 @@ class Gaussian_Job():
 
         #  Return the first coordinates, since it is a single point
         return data.atomcoords[0]
+
+    def get_energy(self):
+        """Extract energy from output file."""
+        # Log start
+        logger = logging.getLogger()
+        logger.info("Extracting energy " + str(self.job_id))
+
+        # Get into working directory
+        os.chdir(self.path)
+
+        # Parse file with cclib
+        data = ccread(self.output_filename)
+
+        #  Return the energy
+        return data.scfenergies[0]
 
     def setup_computation(self):
         """
